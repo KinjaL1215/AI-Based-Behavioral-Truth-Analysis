@@ -135,18 +135,61 @@ img, .placeholder-box {
 
 .controls {
     margin-top: 20px;
-    padding: 15px;
-    background: var(--card-bg);
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
     border-radius: 12px;
-    font-size: 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.telemetry-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.data-card {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid rgba(0, 255, 136, 0.1);
+}
+
+.data-label {
+    font-size: 0.7rem;
     color: #8892b0;
-    border-left: 4px solid var(--primary-neon);
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.data-value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary-neon);
+}
+
+.loader {
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top: 3px solid var(--primary-neon);
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    animation: spin 1s linear infinite;
+    margin: 10px auto;
 }
 
 @keyframes pulse {
     0% { opacity: 1; }
     50% { opacity: 0.4; }
     100% { opacity: 1; }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 
 /* Optional: Adds a scanning effect over the video */

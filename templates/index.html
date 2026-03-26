@@ -18,9 +18,10 @@
         <main class="content-area">
             <div class="video-section">
                 <div class="video-wrapper">
-                    <div class="scan-line"></div>
+                    <div id="scanLine" class="scan-line" style="display: none;"></div>
                     <div id="placeholder" class="placeholder-box">
-                        <span>System Standby - Ready to start</span>
+                        <div id="loader" class="loader" style="display: none;"></div>
+                        <span id="placeholderText">System Standby - Ready to start</span>
                     </div>
                     <img id="videoFeed" src="" alt="Video Stream" style="display: none;">
                 </div>
@@ -29,8 +30,21 @@
                         <button id="startBtn" class="btn-start" onclick="startCamera()">Start Analysis</button>
                         <button id="stopBtn" class="btn-stop" onclick="stopCamera()" style="display: none;">Stop Analysis</button>
                     </div>
-                    <p id="statusText">Ready to monitor behavioral patterns...</p>
-                    <div id="blink-counter">Blink Count: <span id="count">0</span></div>
+                    
+                    <div class="telemetry-grid">
+                        <div class="data-card">
+                            <span class="data-label">Blink Count</span>
+                            <span id="count" class="data-value">0</span>
+                        </div>
+                        <div class="data-card">
+                            <span class="data-label">Confidence</span>
+                            <span class="data-value">98.2%</span>
+                        </div>
+                        <div class="data-card">
+                            <span class="data-label">System</span>
+                            <span id="statusText" class="data-value" style="font-size: 0.8rem;">READY</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -38,19 +52,28 @@
     <script>
         function startCamera() {
             const videoImg = document.getElementById('videoFeed');
-            const placeholder = document.getElementById('placeholder');
+            const placeholderText = document.getElementById('placeholderText');
+            const loader = document.getElementById('loader');
             const statusBadge = document.getElementById('statusBadge');
             const startBtn = document.getElementById('startBtn');
             const stopBtn = document.getElementById('stopBtn');
             const statusText = document.getElementById('statusText');
+            const scanLine = document.getElementById('scanLine');
 
+            placeholderText.innerText = "Initializing Camera...";
+            loader.style.display = "block";
+            
+            videoImg.onload = () => {
+                document.getElementById('placeholder').style.display = "none";
+                videoImg.style.display = "block";
+                scanLine.style.display = "block";
+            };
+            
             videoImg.src = "{{ url_for('video') }}";
-            videoImg.style.display = "block";
-            placeholder.style.display = "none";
             statusBadge.style.display = "flex";
             startBtn.style.display = "none";
             stopBtn.style.display = "inline-block";
-            statusText.innerText = "Monitoring active facial landmarks...";
+            statusText.innerText = "LIVE";
         }
 
         function stopCamera() {
