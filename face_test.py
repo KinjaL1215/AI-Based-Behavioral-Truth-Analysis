@@ -1,8 +1,9 @@
+from flask import Flask, Response, render_template
 import cv2
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-
+app = Flask(__name__)
 BaseOptions = mp.tasks.BaseOptions
 FaceLandmarker = mp.tasks.vision.FaceLandmarker
 FaceLandmarkerOptions = mp.tasks.vision.FaceLandmarkerOptions
@@ -12,17 +13,15 @@ options = FaceLandmarkerOptions(
     base_options=BaseOptions(model_asset_path='face_landmarker.task'),
     running_mode=VisionRunningMode.IMAGE)
 
-with FaceLandmarker.create_from_options(options) as landmarker:
-    cap = cv2.VideoCapture(0)
+landmarker =  FaceLandmarker.create_from_options(options) 
+cap = cv2.VideoCapture(0)
 
-    cv2.namedWindow("Crop (off-camera focus)")
-    cv2.namedWindow("Full Frame")
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-
+def generate_frames():
+    while cap.isOpened():
+        success, frame = cap.read()
+        if not success:
+            continue
+        
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         result = landmarker.detect(mp_image)
 
@@ -32,29 +31,35 @@ with FaceLandmarker.create_from_options(options) as landmarker:
             xs = [int(lm.x * w) for lm in landmarks]
             ys = [int(lm.y * h) for lm in landmarks]
 
+            # Draw the landmark dots
+            for x, y in zip(xs, ys):
+                cv2.circle(frame, (x, y), 1, (0, 255, 0), -1)
+
+            # Define bounding box
             x1 = max(min(xs) - 20, 0)
             y1 = max(min(ys) - 20, 0)
             x2 = min(max(xs) + 20, w)
             y2 = min(max(ys) + 20, h)
 
-            face_crop = frame[y1:y2, x1:x2]
+            # Draw the bounding box
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-            # Draw dots on full face
-            for lm in landmarks:
-                x, y = int(lm.x * w), int(lm.y * h)
-                cv2.circle(frame, (x, y), 1, (0, 255, 0), -1)
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame_bytes = buffer.tobytes()
 
-            if face_crop.size > 0:
-                cv2.imshow("Crop (off-camera focus)", face_crop)
-        else:
-            cv2.imshow("Crop (off-camera focus)", frame)
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
-        cv2.imshow("Full Frame", frame)
 
-        key = cv2.waitKey(1)
-        if key == 27 or cv2.getWindowProperty("Crop (off-camera focus)", cv2.WND_PROP_VISIBLE) != 1:
-            break
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-    cap.release()
-    cv2.destroyAllWindows()
+@app.route('/video')
+def video():
+    return Response(generate_frames(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
+if __name__ == "__main__":
+    app.run(debug=True, use_reloader=False)

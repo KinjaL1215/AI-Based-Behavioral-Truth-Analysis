@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Detection UI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="main-container">
+        <header>
+            <div class="logo">AI<span>Behavioral</span>Analysis</div>
+            <div class="status-badge">
+                <span class="dot"></span> LIVE SYSTEM
+            </div>
+        </header>
+        
+        <main class="content-area">
+            <div class="video-section">
+                <div class="video-wrapper">
+                    <div class="scan-line"></div>
+                    <img src="{{ url_for('video') }}" alt="Video Stream">
+                </div>
+                <div class="controls">
+                    <p>Monitoring active facial landmarks and behavioral patterns...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
