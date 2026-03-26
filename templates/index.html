@@ -10,7 +10,7 @@
     <div class="main-container">
         <header>
             <div class="logo">AI<span>Behavioral</span>Analysis</div>
-            <div class="status-badge">
+            <div id="statusBadge" class="status-badge" style="display: none;">
                 <span class="dot"></span> LIVE SYSTEM
             </div>
         </header>
@@ -19,16 +19,44 @@
             <div class="video-section">
                 <div class="video-wrapper">
                     <div class="scan-line"></div>
-                    <img src="{{ url_for('video') }}" alt="Video Stream">
+                    <div id="placeholder" class="placeholder-box">
+                        <span>System Standby - Ready to start</span>
+                    </div>
+                    <img id="videoFeed" src="" alt="Video Stream" style="display: none;">
                 </div>
                 <div class="controls">
-                    <p>Monitoring active facial landmarks and behavioral patterns...</p>
+                    <div class="btn-group">
+                        <button id="startBtn" class="btn-start" onclick="startCamera()">Start Analysis</button>
+                        <button id="stopBtn" class="btn-stop" onclick="stopCamera()" style="display: none;">Stop Analysis</button>
+                    </div>
+                    <p id="statusText">Ready to monitor behavioral patterns...</p>
                     <div id="blink-counter">Blink Count: <span id="count">0</span></div>
                 </div>
             </div>
         </main>
     </div>
     <script>
+        function startCamera() {
+            const videoImg = document.getElementById('videoFeed');
+            const placeholder = document.getElementById('placeholder');
+            const statusBadge = document.getElementById('statusBadge');
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const statusText = document.getElementById('statusText');
+
+            videoImg.src = "{{ url_for('video') }}";
+            videoImg.style.display = "block";
+            placeholder.style.display = "none";
+            statusBadge.style.display = "flex";
+            startBtn.style.display = "none";
+            stopBtn.style.display = "inline-block";
+            statusText.innerText = "Monitoring active facial landmarks...";
+        }
+
+        function stopCamera() {
+            location.reload(); // Simplest way to cleanly reset the stream and backend camera
+        }
+
         function updateBlinkCount() {
             fetch('/blink_count')
                 .then(response => response.json())
