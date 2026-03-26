@@ -1,9 +1,8 @@
-from flask import Flask, Response, render_template
 import cv2
 import mediapipe as mp
+import time
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-app = Flask(__name__)
 BaseOptions = mp.tasks.BaseOptions
 FaceLandmarker = mp.tasks.vision.FaceLandmarker
 FaceLandmarkerOptions = mp.tasks.vision.FaceLandmarkerOptions
@@ -11,19 +10,20 @@ VisionRunningMode = mp.tasks.vision.RunningMode
 
 options = FaceLandmarkerOptions(
     base_options=BaseOptions(model_asset_path='face_landmarker.task'),
-    running_mode=VisionRunningMode.IMAGE)
+    running_mode=VisionRunningMode.VIDEO)
 
 landmarker =  FaceLandmarker.create_from_options(options) 
 cap = cv2.VideoCapture(0)
 
 def generate_frames():
     while cap.isOpened():
+        timestamp_ms = int(time.time() * 1000)
         success, frame = cap.read()
         if not success:
-            continue
+            break
         
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-        result = landmarker.detect(mp_image)
+        result = landmarker.detect_for_video(mp_image, timestamp_ms)
 
         if result.face_landmarks:
             landmarks = result.face_landmarks[0]
@@ -49,17 +49,3 @@ def generate_frames():
 
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/video')
-def video():
-    return Response(generate_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
-
-
-if __name__ == "__main__":
-    app.run(debug=True, use_reloader=False)
