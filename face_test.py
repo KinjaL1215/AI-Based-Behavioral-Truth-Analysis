@@ -15,11 +15,12 @@ options = FaceLandmarkerOptions(
 
 landmarker =  FaceLandmarker.create_from_options(options) 
 
-blink_detector = BlinkDetector()
 shared_data = {"blink_count": 0}
 
 def generate_frames():
     global shared_data
+    shared_data["blink_count"] = 0
+    blink_detector = BlinkDetector()
     cap = cv2.VideoCapture(0)
     try:
         while cap.isOpened():

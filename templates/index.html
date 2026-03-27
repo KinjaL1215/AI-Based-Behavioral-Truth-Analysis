@@ -29,6 +29,7 @@
                     <div class="btn-group">
                         <button id="startBtn" class="btn-start" onclick="startCamera()">Start Analysis</button>
                         <button id="stopBtn" class="btn-stop" onclick="stopCamera()" style="display: none;">Stop Analysis</button>
+                        <button id="resetBtn" class="btn-start" onclick="location.reload()" style="display: none; background-color: #f44336;">Fresh Restart</button>
                     </div>
                     
                     <div class="telemetry-grid">
@@ -37,12 +38,43 @@
                             <span id="count" class="data-value">0</span>
                         </div>
                         <div class="data-card">
-                            <span class="data-label">Confidence</span>
-                            <span class="data-value">98.2%</span>
+                            <span class="data-label">Voice Result</span>
+                            <span id="voiceResult" class="data-value">Not Analyzed</span>
                         </div>
                         <div class="data-card">
                             <span class="data-label">System</span>
                             <span id="statusText" class="data-value" style="font-size: 0.8rem;">READY</span>
+                        </div>
+                    </div>
+                    
+                    <div id="voiceDetails" class="voice-details" style="display: none;">
+                        <div class="detail-item">
+                            <span class="detail-label">Pitch:</span>
+                            <span id="voicePitch" class="detail-value"></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Energy:</span>
+                            <span id="voiceEnergy" class="detail-value"></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Tempo:</span>
+                            <span id="voiceTempo" class="detail-value"></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Score:</span>
+                            <span id="voiceScore" class="detail-value"></span>
+                        </div>
+                    </div>
+                    
+                    <div id="finalResults" class="final-results" style="display: none;">
+                        <h3>Analysis Complete</h3>
+                        <div class="result-item">
+                            <span class="result-label">Final Blink Count:</span>
+                            <span id="finalBlinkCount" class="result-value"></span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Voice Analysis Result:</span>
+                            <span id="finalVoiceResult" class="result-value"></span>
                         </div>
                     </div>
                 </div>
@@ -59,14 +91,20 @@
             const stopBtn = document.getElementById('stopBtn');
             const statusText = document.getElementById('statusText');
             const scanLine = document.getElementById('scanLine');
+            const finalResults = document.getElementById('finalResults');
 
             placeholderText.innerText = "Initializing Camera...";
             loader.style.display = "block";
+            finalResults.style.display = "none"; // Hide previous results
             
             videoImg.onload = () => {
                 document.getElementById('placeholder').style.display = "none";
                 videoImg.style.display = "block";
                 scanLine.style.display = "block";
+                // Start blink count updates
+                if (!updateInterval) {
+                    updateInterval = setInterval(updateBlinkCount, 1000);
+                }
             };
             
             videoImg.src = "{{ url_for('video') }}";
@@ -74,10 +112,50 @@
             startBtn.style.display = "none";
             stopBtn.style.display = "inline-block";
             statusText.innerText = "LIVE";
+            
+            isAnalysisActive = true;
+            startVoiceAnalysis();
         }
 
         function stopCamera() {
-            location.reload(); // Simplest way to cleanly reset the stream and backend camera
+            // Stop analysis and show final results
+            const videoImg = document.getElementById('videoFeed');
+            const placeholder = document.getElementById('placeholder');
+            const placeholderText = document.getElementById('placeholderText');
+            const loader = document.getElementById('loader');
+            const scanLine = document.getElementById('scanLine');
+            const statusBadge = document.getElementById('statusBadge');
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const finalResults = document.getElementById('finalResults');
+            const statusText = document.getElementById('statusText');
+
+            // Stop updates
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+
+            // Hide video elements
+            videoImg.style.display = "none";
+            scanLine.style.display = "none";
+            placeholder.style.display = "block";
+            placeholderText.innerText = "Analysis Stopped";
+            loader.style.display = "none";
+
+            // Basic final state
+            statusBadge.style.display = "none";
+            startBtn.style.display = "none";
+            document.getElementById('resetBtn').style.display = "inline-block";
+            stopBtn.style.display = "none";
+            statusText.innerText = "STOPPED";
+            
+            isAnalysisActive = false;
+
+            // Final blink count summary
+            const finalBlink = document.getElementById('count').textContent;
+            document.getElementById('finalBlinkCount').textContent = finalBlink;
+            finalResults.style.display = "block";
         }
 
         function updateBlinkCount() {
@@ -89,7 +167,58 @@
                 .catch(error => console.error('Error fetching blink count:', error));
         }
         
-        setInterval(updateBlinkCount, 1000);
+        var latestVoiceData = null;
+        var voiceInProgress = false;
+        var isAnalysisActive = false;
+
+        function startVoiceAnalysis() {
+            if (voiceInProgress || !isAnalysisActive) {
+                return;
+            }
+            voiceInProgress = true;
+
+            const resultEl = document.getElementById('voiceResult');
+            const detailsEl = document.getElementById('voiceDetails');
+            const finalVoiceElement = document.getElementById('finalVoiceResult');
+
+            resultEl.textContent = 'Analyzing...';
+            finalVoiceElement.textContent = 'Analyzing...';
+            detailsEl.style.display = 'none';
+
+            fetch('/voice_analysis')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        latestVoiceData = null;
+                        resultEl.textContent = 'Error';
+                        finalVoiceElement.textContent = 'Error';
+                        console.error('Voice analysis error:', data.error);
+                    } else {
+                        latestVoiceData = data;
+                        resultEl.textContent = data.result;
+                        finalVoiceElement.textContent = data.result;
+                        document.getElementById('voicePitch').textContent = data.pitch + ' Hz';
+                        document.getElementById('voiceEnergy').textContent = data.energy;
+                        document.getElementById('voiceTempo').textContent = data.tempo + ' BPM';
+                        document.getElementById('voiceScore').textContent = data.score;
+                        detailsEl.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    latestVoiceData = null;
+                    console.error('Error fetching voice analysis:', error);
+                    resultEl.textContent = 'Error';
+                    finalVoiceElement.textContent = 'Error';
+                })
+                .finally(() => {
+                    voiceInProgress = false;
+                    if (isAnalysisActive) {
+                        startVoiceAnalysis(); // Continue looping
+                    }
+                });
+        }
+
+        var updateInterval = null;
         updateBlinkCount(); // Initial load
     </script>
 </body>
