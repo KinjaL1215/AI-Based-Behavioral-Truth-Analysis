@@ -27,10 +27,15 @@
                 </div>
                 <div class="controls">
                     <div class="btn-group">
-                        <button id="startBtn" class="btn-start" onclick="startCamera()">Start Analysis</button>
-                        <button id="stopBtn" class="btn-stop" onclick="stopCamera()" style="display: none;">Stop Analysis</button>
-                        <button id="resetBtn" class="btn-start" onclick="location.reload()" style="display: none; background-color: #f44336;">Fresh Restart</button>
-                    </div>
+    <!-- Step 1: Calibration -->
+    <button id="calibrateBtn" class="btn-start" onclick="startCalibration()" style="background-color: #2196F3;">1. Calibrate (Speak Normally)</button>
+    
+    <!-- Step 2: Analysis (Hidden until Calibrated) -->
+    <button id="startBtn" class="btn-start" onclick="startCamera()" style="display: none; background-color: #4CAF50;">2. Start Interrogation</button>
+    
+    <button id="stopBtn" class="btn-stop" onclick="stopCamera()" style="display: none;">Stop Analysis</button>
+    <button id="resetBtn" class="btn-start" onclick="location.reload()" style="display: none; background-color: #f44336;">Fresh Restart</button>
+</div>
                     
                     <div class="telemetry-grid">
                         <div class="data-card">
@@ -81,7 +86,43 @@
             </div>
         </main>
     </div>
-    <script>
+   <script>
+        let updateInterval = null;
+        let isAnalysisActive = false;
+        let latestVoiceData = null;
+
+        // --- STEP 1: CALIBRATION ---
+        function startCalibration() {
+            const statusText = document.getElementById('statusText');
+            const calibrateBtn = document.getElementById('calibrateBtn');
+            const startBtn = document.getElementById('startBtn');
+
+            statusText.innerText = "CALIBRATING VOICE...";
+            calibrateBtn.disabled = true;
+            calibrateBtn.innerText = "Recording Baseline (3s)...";
+
+            // Calls the calibration route in app.py
+            fetch('/calibrate_voice')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'Voice Calibrated') {
+                        statusText.innerText = "CALIBRATED";
+                        calibrateBtn.style.display = "none";
+                        startBtn.style.display = "inline-block"; // Show the real analysis button
+                        alert("Voice Profile Saved! Now click 'Start Interrogation'.");
+                    } else {
+                        alert("Calibration failed. Check Microphone.");
+                        calibrateBtn.disabled = false;
+                        calibrateBtn.innerText = "Retry Calibration";
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    statusText.innerText = "MIC ERROR";
+                });
+        }
+
+        // --- STEP 2: VIDEO ANALYSIS ---
         function startCamera() {
             const videoImg = document.getElementById('videoFeed');
             const placeholderText = document.getElementById('placeholderText');
@@ -91,17 +132,14 @@
             const stopBtn = document.getElementById('stopBtn');
             const statusText = document.getElementById('statusText');
             const scanLine = document.getElementById('scanLine');
-            const finalResults = document.getElementById('finalResults');
 
             placeholderText.innerText = "Initializing Camera...";
             loader.style.display = "block";
-            finalResults.style.display = "none"; // Hide previous results
             
             videoImg.onload = () => {
                 document.getElementById('placeholder').style.display = "none";
                 videoImg.style.display = "block";
                 scanLine.style.display = "block";
-                // Start blink count updates
                 if (!updateInterval) {
                     updateInterval = setInterval(updateBlinkCount, 1000);
                 }
@@ -111,51 +149,45 @@
             statusBadge.style.display = "flex";
             startBtn.style.display = "none";
             stopBtn.style.display = "inline-block";
-            statusText.innerText = "LIVE";
+            statusText.innerText = "ANALYZING";
             
             isAnalysisActive = true;
-            startVoiceAnalysis();
+            
+            // Start the infinite voice analysis loop
+            triggerVoiceInterrogation();
         }
 
-        function stopCamera() {
-            // Stop analysis and show final results
-            const videoImg = document.getElementById('videoFeed');
-            const placeholder = document.getElementById('placeholder');
-            const placeholderText = document.getElementById('placeholderText');
-            const loader = document.getElementById('loader');
-            const scanLine = document.getElementById('scanLine');
-            const statusBadge = document.getElementById('statusBadge');
-            const startBtn = document.getElementById('startBtn');
-            const stopBtn = document.getElementById('stopBtn');
-            const finalResults = document.getElementById('finalResults');
-            const statusText = document.getElementById('statusText');
+        // --- STEP 3: VOICE ANALYSIS LOOP ---
+        function triggerVoiceInterrogation() {
+            if (!isAnalysisActive) return;
 
-            // Stop updates
-            if (updateInterval) {
-                clearInterval(updateInterval);
-                updateInterval = null;
-            }
+            const voiceResult = document.getElementById('voiceResult');
+            const voiceDetails = document.getElementById('voiceDetails');
+            voiceResult.innerText = "Listening...";
+            voiceDetails.style.display = "block";
 
-            // Hide video elements
-            videoImg.style.display = "none";
-            scanLine.style.display = "none";
-            placeholder.style.display = "block";
-            placeholderText.innerText = "Analysis Stopped";
-            loader.style.display = "none";
+            fetch('/voice_analysis')
+                .then(response => response.json())
+                .then(data => {
+                    // Update UI with results
+                    document.getElementById('voicePitch').innerText = data.pitch + " Hz";
+                    document.getElementById('voiceEnergy').innerText = data.energy;
+                    document.getElementById('voiceTempo').innerText = data.tempo + " BPM";
+                    document.getElementById('voiceScore').innerText = data.total_score + "% Stress";
+                    document.getElementById('voiceResult').innerText = data.result;
+                    
+                    // Change text color based on result
+                    voiceResult.style.color = (data.result === "POSSIBLE LIE") ? "red" : "#4CAF50";
 
-            // Basic final state
-            statusBadge.style.display = "none";
-            startBtn.style.display = "none";
-            document.getElementById('resetBtn').style.display = "inline-block";
-            stopBtn.style.display = "none";
-            statusText.innerText = "STOPPED";
-            
-            isAnalysisActive = false;
-
-            // Final blink count summary
-            const finalBlink = document.getElementById('count').textContent;
-            document.getElementById('finalBlinkCount').textContent = finalBlink;
-            finalResults.style.display = "block";
+                    // Restart analysis after a small delay
+                    if (isAnalysisActive) {
+                        setTimeout(triggerVoiceInterrogation, 1500);
+                    }
+                })
+                .catch(error => {
+                    console.error('Voice Error:', error);
+                    voiceResult.innerText = "Mic Error";
+                });
         }
 
         function updateBlinkCount() {
@@ -166,60 +198,12 @@
                 })
                 .catch(error => console.error('Error fetching blink count:', error));
         }
-        
-        var latestVoiceData = null;
-        var voiceInProgress = false;
-        var isAnalysisActive = false;
 
-        function startVoiceAnalysis() {
-            if (voiceInProgress || !isAnalysisActive) {
-                return;
-            }
-            voiceInProgress = true;
-
-            const resultEl = document.getElementById('voiceResult');
-            const detailsEl = document.getElementById('voiceDetails');
-            const finalVoiceElement = document.getElementById('finalVoiceResult');
-
-            resultEl.textContent = 'Analyzing...';
-            finalVoiceElement.textContent = 'Analyzing...';
-            detailsEl.style.display = 'none';
-
-            fetch('/voice_analysis')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        latestVoiceData = null;
-                        resultEl.textContent = 'Error';
-                        finalVoiceElement.textContent = 'Error';
-                        console.error('Voice analysis error:', data.error);
-                    } else {
-                        latestVoiceData = data;
-                        resultEl.textContent = data.result;
-                        finalVoiceElement.textContent = data.result;
-                        document.getElementById('voicePitch').textContent = data.pitch + ' Hz';
-                        document.getElementById('voiceEnergy').textContent = data.energy;
-                        document.getElementById('voiceTempo').textContent = data.tempo + ' BPM';
-                        document.getElementById('voiceScore').textContent = data.score;
-                        detailsEl.style.display = 'block';
-                    }
-                })
-                .catch(error => {
-                    latestVoiceData = null;
-                    console.error('Error fetching voice analysis:', error);
-                    resultEl.textContent = 'Error';
-                    finalVoiceElement.textContent = 'Error';
-                })
-                .finally(() => {
-                    voiceInProgress = false;
-                    if (isAnalysisActive) {
-                        startVoiceAnalysis(); // Continue looping
-                    }
-                });
+        function stopCamera() {
+            isAnalysisActive = false;
+            if (updateInterval) clearInterval(updateInterval);
+            location.reload(); // Reset everything for the next session
         }
-
-        var updateInterval = null;
-        updateBlinkCount(); // Initial load
     </script>
 </body>
 </html>

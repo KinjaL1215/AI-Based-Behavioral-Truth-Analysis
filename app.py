@@ -1,9 +1,13 @@
 import numpy as np
 from flask import Flask, Response, render_template, jsonify
 from face_test import generate_frames, shared_data
-from voice import record_audio, analyze_voice, calculate_score, classify_result
+# Import the new functions from your updated voice.py
+from voice import record_audio, analyze_voice, calculate_lie_probability, classify_voice_result
 
 app = Flask(__name__)
+
+# Global storage for the "Normal" voice stats
+voice_baseline = None 
 
 @app.route('/')
 def index():
@@ -14,61 +18,71 @@ def video():
     return Response(generate_frames(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
-@app.route('/blink_count')
-def blink_count():
-    return jsonify(count=shared_data["blink_count"])
+# --- NEW: CALIBRATION ROUTE ---
+@app.route('/calibrate_voice')
+def calibrate_voice():
+    global voice_baseline
+    try:
+        audio, fs = record_audio(duration=3)
+        if audio is not None:
+            voice_baseline = analyze_voice(audio, fs)
+            return jsonify({'status': 'Voice Calibrated', 'baseline': voice_baseline[0]})
+        return jsonify({'error': 'Mic failed'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/voice_analysis')
 def voice_analysis():
+    global voice_baseline
     try:
-        # 1. Recording se pehle ke blinks
+        if voice_baseline is None:
+            return jsonify({'error': 'Please calibrate voice first!'}), 400
+
+        # 1. Blink tracking
         start_blinks = shared_data.get("blink_count", 0)
-        
-        audio, fs = record_audio()
-
+        audio, fs = record_audio(duration=3)
         if audio is None:
-            return jsonify({'error': 'Microphone not working'}), 500
+            return jsonify({'error': 'Microphone error'}), 500
 
-        # 2. Recording ke baad ke blinks
         end_blinks = shared_data.get("blink_count", 0)
         blinks_during_speech = end_blinks - start_blinks
 
-        # 3. Voice Analysis
-        pitch, energy, tempo = analyze_voice(audio, fs)
-        voice_score = calculate_score(pitch, energy, tempo)
+        # 2. Voice Analysis (Relative to Baseline)
+        current_stats = analyze_voice(audio, fs)
+        # Using the new probability-based function
+        voice_prob = calculate_lie_probability(current_stats, voice_baseline)
         
-        # 4. Facial Result (Stream se current status)
-        face_result = shared_data.get("facial_prediction", "Natural")
+        # 3. Facial Result
+        face_status = shared_data.get("facial_prediction", "Natural")
 
-        # 5. Combined Logic (Final Verdict)
-        final_score = voice_score
-        if face_result == "Tense":
-            final_score += 2
-        if blinks_during_speech > 5: # Agar 3 sec mein 5+ baar blink kiya toh stress
-            final_score += 1
-            
-        final_result = "POSSIBLE LIE" if final_score >= 2 else "LIKELY TRUTH"
+        # 4. Combined Logic (Final Verdict Score)
+        # We start with the voice probability (0-100)
+        total_lie_score = voice_prob
+        
+        # Add weight if face is tense
+        if "Tense" in face_status:
+            total_lie_score += 30 
+        
+        # Add weight if they blinked too much (Anxiety) or too little (Focusing on a lie)
+        if blinks_during_speech > 6 or blinks_during_speech == 0:
+            total_lie_score += 15
 
-        if isinstance(tempo, (np.ndarray, list, tuple)):
-            tempo = float(np.mean(tempo))
-        else:
-            tempo = float(tempo)
+        # Final Classification
+        final_result = "POSSIBLE LIE" if total_lie_score >= 60 else "LIKELY TRUTH"
 
         return jsonify({
-            'pitch': float(round(pitch, 2)),
-            'energy': float(round(energy, 4)),
-            'tempo': float(round(tempo, 2)),
-            'voice_score': float(voice_score),
-            'face_prediction': face_result,
+            'pitch': float(round(current_stats[0], 2)),
+            'energy': float(round(current_stats[1], 4)),
+            'voice_probability': voice_prob,
+            'face_prediction': face_status,
             'blinks_during_speech': blinks_during_speech,
+            'total_score': total_lie_score,
             'result': final_result,
         }), 200
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 if __name__ == "__main__":
-    
     app.run(debug=True, use_reloader=False, threaded=True)
+    

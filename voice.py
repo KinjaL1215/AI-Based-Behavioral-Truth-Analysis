@@ -80,45 +80,53 @@ def analyze_voice(audio, fs):
 
 
 # 📊 SCORE CALCULATION
-def calculate_score(pitch, energy, tempo):
+def calculate_lie_probability(current_stats, baseline_stats):
+    """
+    Compares current voice to baseline to find 'Stress'
+    """
+    c_pitch, c_energy, c_tempo = current_stats
+    b_pitch, b_energy, b_tempo = baseline_stats
+    
     score = 0
+    
+    # 1. Pitch Spike (Strongest Indicator)
+    # If pitch increases by more than 10% from natural baseline
+    if c_pitch > (b_pitch * 1.10):
+        score += 50 
+        
+    # 2. Energy/Volume Increase (Aggression/Defensiveness)
+    if c_energy > (b_energy * 1.5):
+        score += 25
+        
+    # 3. Tempo Change (Hesitation or Rushing)
+    # If they speak 20% faster or slower than their normal speed
+    if c_tempo > (b_tempo * 1.2) or c_tempo < (b_tempo * 0.8):
+        score += 25
 
-    if pitch > 185:  # Realistic high pitch threshold
-        score += 1
+    return score # Returns a probability out of 100
 
-    if energy > 0.02:  # Moderate loudness check
-        score += 1
-
-    if 0 < tempo < 75:  # Slightly slow speaking
-        score += 1
-
-    return score
-
-
-# 🧠 RESULT CLASSIFICATION
-def classify_result(score):
-    if score >= 2: # Kam se kam 2 indicators milne par hi 'Lie' declare karein
-        return "POSSIBLE LIE"
+def classify_voice_result(probability):
+    if probability >= 75:
+        return "HIGH STRESS (Potential Lie)"
+    elif probability >= 40:
+        return "MODERATE STRESS"
     else:
-        return "LIKELY TRUTH"
-
-
-# 🚀 MAIN EXECUTION
+        return "STABLE (Likely Truth)"
+# 🚀 TEST EXECUTION (Put this at the very bottom of voice.py)
 if __name__ == "__main__":
-    audio, fs = record_audio(duration=5)
+    print("--- STEP 1: CALIBRATION (Speak Normally) ---")
+    audio_b, fs_b = record_audio(duration=3)
+    if audio_b is not None:
+        baseline_stats = analyze_voice(audio_b, fs_b)
+        print(f"Baseline Set: Pitch={baseline_stats[0]:.2f}")
 
-    if audio is not None:
-        pitch, energy, tempo = analyze_voice(audio, fs)
+        print("\n--- STEP 2: LIE TEST (Speak with Stress/High Pitch) ---")
+        audio_t, fs_t = record_audio(duration=3)
+        current_stats = analyze_voice(audio_t, fs_t)
 
-        score = calculate_score(pitch, energy, tempo)
+        prob = calculate_lie_probability(current_stats, baseline_stats)
+        result = classify_voice_result(prob)
 
-        result = classify_result(score)
-
-        print("\n📊 RESULTS:")
-        print(f"Average Pitch: {pitch:.2f} Hz")
-        print(f"Average Energy: {energy:.4f}")
-        print(f"Speech Tempo: {tempo:.2f} BPM")
-        print(f"Score: {score}")
-        print(f"Result: {result}")
+        print(f"\n📊 RESULT: {result} ({prob}%)")
     else:
-        print("❌ Recording failed. Try again.")
+        print("❌ Recording failed.")
