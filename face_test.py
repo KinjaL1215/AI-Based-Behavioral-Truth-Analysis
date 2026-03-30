@@ -4,6 +4,7 @@ import time
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from blink import BlinkDetector
+from facial_expression_lie_detector import predict_lie_from_facial_expression
 BaseOptions = mp.tasks.BaseOptions
 FaceLandmarker = mp.tasks.vision.FaceLandmarker
 FaceLandmarkerOptions = mp.tasks.vision.FaceLandmarkerOptions
@@ -37,6 +38,10 @@ def generate_frames():
                 
                 blink_count = blink_detector.detect_blink(landmarks)
                 shared_data["blink_count"] = blink_count
+
+                # Convert MediaPipe landmarks to (x, y) tuples for lie detection
+                landmark_points = [(lm.x, lm.y) for lm in landmarks]
+                prediction = predict_lie_from_facial_expression(landmark_points)
                 
                 h, w, _ = frame.shape
                 xs = [int(lm.x * w) for lm in landmarks]
@@ -54,6 +59,10 @@ def generate_frames():
 
                 # Draw the bounding box
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+                # Display Lie/Truth prediction text only
+                text = f'Prediction: {prediction}'
+                cv2.putText(frame, text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255) if prediction == 'Lie' else (0, 255, 0), 2)
 
             ret, buffer = cv2.imencode('.jpg', frame)
             frame_bytes = buffer.tobytes()

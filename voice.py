@@ -1,104 +1,124 @@
 import numpy as np
 import sounddevice as sd
 import librosa
-# your mic
 
-import sounddevice as sd
 
-def record_audio(duration=3, fs=48000):  # ✅ SAFE SAMPLE RATE
+# 🎤 UNIVERSAL RECORD FUNCTION
+def record_audio(duration=3, fs=44100):
+    print(f"🎤 Recording for {duration} seconds...")
+
     try:
-        print(f"🎤 Recording for {duration} seconds...")
+        sd.default.channels = 1  # ✅ force mono (safe)
+        devices = sd.query_devices()
 
-        recording = sd.rec(
-            int(duration * fs),
-            samplerate=fs,
-            channels=1,
-            dtype='float32',
-            device=9  # ✅ ONLY mic
-        )
+        input_devices = []
 
-        sd.wait()
-        print("✅ Recording finished.")
+        # ✅ find all input devices
+        for i, device in enumerate(devices):
+            if device['max_input_channels'] > 0:
+                input_devices.append(i)
 
-        return recording.flatten(), fs
+        if not input_devices:
+            print("❌ No microphone devices found!")
+            return None, None
+
+        # ✅ try each device
+        for device_id in input_devices:
+            try:
+                print(f"🔍 Trying device {device_id}...")
+
+                recording = sd.rec(
+                    int(duration * fs),
+                    samplerate=fs,
+                    channels=1,
+                    dtype='float32',
+                    device=device_id
+                )
+
+                sd.wait()
+                print(f"✅ Recording success with device {device_id}")
+
+                return recording.flatten(), fs
+
+            except Exception as ex:
+                print(f"❌ Device {device_id} failed:", ex)
+
+        print("❌ No working microphone found!")
+        return None, None
 
     except Exception as ex:
         print("❌ Microphone Error:", ex)
         return None, None
+
+
+# 🎧 ANALYSIS FUNCTION
 def analyze_voice(audio, fs):
     if audio is None:
-        raise ValueError("No audio")
+        raise ValueError("No audio data")
 
+    # 🎯 Pitch
     try:
         pitch_values = librosa.yin(audio, fmin=50, fmax=300)
         pitch = np.mean(pitch_values)
     except:
         pitch = 0
 
+    # 🔊 Energy
     energy = np.mean(audio**2)
 
+    # 🥁 Tempo
     try:
         tempo, _ = librosa.beat.beat_track(y=audio, sr=fs)
         if isinstance(tempo, np.ndarray):
             tempo = float(np.mean(tempo))
         else:
             tempo = float(tempo)
-    except Exception:
+    except:
         tempo = 0.0
 
     return pitch, energy, tempo
+
+
+# 📊 SCORE CALCULATION
 def calculate_score(pitch, energy, tempo):
-    """
-    Calculates a stress/deception score based on pitch, energy, and tempo.
-
-    Parameters:
-    pitch (float): Average pitch in Hz
-    energy (float): Average energy level
-    tempo (float): Speech tempo in BPM
-
-    Returns:
-    int: Score (0-3)
-    """
     score = 0
-    if pitch > 130:  # High pitch indicates stress
+
+    if pitch > 230:  # Stress ke liye pitch threshold badha di gayi hai
         score += 1
-    if energy < 0.0001 or energy > 0.05:  # Hesitation/pauses (low energy) or shouting (high energy)
+
+    if energy > 0.08:  # Sirf tab jab awaaz bahut loud ho
         score += 1
-    if tempo < 80:  # Slow speaking or stopping indicates telling a lie
+
+    if 0 < tempo < 65:  # Jab bolne ki raftaar bahut dheemi ho
         score += 1
+
     return score
 
+
+# 🧠 RESULT CLASSIFICATION
 def classify_result(score):
-    """
-    Classifies the result based on the score.
-
-    Parameters:
-    score (int): Calculated score
-
-    Returns:
-    str: "LIKELY TRUTH" or "POSSIBLE LIE"
-    """
-    if score >= 1:
+    if score >= 2: # Kam se kam 2 indicators milne par hi 'Lie' declare karein
         return "POSSIBLE LIE"
     else:
         return "LIKELY TRUTH"
 
+
+# 🚀 MAIN EXECUTION
 if __name__ == "__main__":
-    # Record audio
     audio, fs = record_audio(duration=5)
 
-    # Analyze audio
-    pitch, energy, tempo = analyze_voice(audio, fs)
+    if audio is not None:
+        pitch, energy, tempo = analyze_voice(audio, fs)
 
-    # Calculate score
-    score = calculate_score(pitch, energy, tempo)
+        score = calculate_score(pitch, energy, tempo)
 
-    # Classify result
-    result = classify_result(score)
+        result = classify_result(score)
 
-    # Print results
-    print(f"Average Pitch: {pitch:.2f} Hz")
-    print(f"Average Energy: {energy:.4f}")
-    print(f"Speech Tempo: {tempo:.2f} BPM")
-    print(f"Score: {score}")
-    print(f"Result: {result}")
+        print("\n📊 RESULTS:")
+        print(f"Average Pitch: {pitch:.2f} Hz")
+        print(f"Average Energy: {energy:.4f}")
+        print(f"Speech Tempo: {tempo:.2f} BPM")
+        print(f"Score: {score}")
+        print(f"Result: {result}")
+    else:
+        print("❌ Recording failed. Try again.")
