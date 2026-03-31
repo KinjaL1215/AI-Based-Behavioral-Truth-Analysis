@@ -53,7 +53,7 @@ def home():
     return render_template('home.html')
 
 
-from db import users_collection
+from models.db import users_collection
 
 @app.route('/app')
 @login_required
