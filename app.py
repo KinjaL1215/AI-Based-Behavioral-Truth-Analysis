@@ -3,12 +3,10 @@ import time
 import base64
 import cv2
 from functools import wraps
-<<<<<<< HEAD
 from flask import Flask, Response, render_template, jsonify, request, redirect, url_for, session, g
-from face_test import generate_frames, shared_data
-from voice import record_audio, analyze_voice, calculate_lie_probability, classify_voice_result
-from result import calculate_final_verdict
-=======
+from models.face_test import generate_frames, shared_data
+from models.voice import record_audio, analyze_voice, calculate_lie_probability, classify_voice_result
+from models.result import calculate_final_verdict
 from flask import Flask, Response, render_template, jsonify, request, redirect, url_for, session
 import mediapipe as mp
 
@@ -18,7 +16,7 @@ from models.voice import record_audio, analyze_voice, calculate_lie_probability,
 from models.result import calculate_final_verdict
 from models.blink import BlinkDetector # Ensure this is imported
 from models.facial_expression import predict_tension_from_facial_expression
->>>>>>> 7ce9f83a7328d5bf54e99038ea38e567a0720f59
+
 
 # ✅ Import Blueprint
 from models.auth import auth
@@ -54,13 +52,9 @@ def login_required(f):
 def home():
     return render_template('home.html')
 
-<<<<<<< HEAD
-
 
 from db import users_collection
 
-=======
->>>>>>> 7ce9f83a7328d5bf54e99038ea38e567a0720f59
 @app.route('/app')
 @login_required
 def app_main():
