@@ -3,14 +3,14 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Sign Up | Behavioral Truth Analysis</title>
+	<title>Sign Up | Lie Detector</title>
 	<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 	<link rel="stylesheet" href="{{ url_for('static', filename='signup.css') }}">
 </head>
 <body>
 	<div class="main-container">
 		<header>
-			<div class="logo">AI<span>Behavioral</span>Analysis</div>
+			<div class="logo">Lie Detector</div>
             <div class="status-badge" style="display: flex;">
                 <span class="dot" style="background-color: #2196f3; box-shadow: 0 0 10px #2196f3;"></span> REGISTRATION_OPEN
             </div>
@@ -18,7 +18,7 @@
 
 		<main class="content-area">
             <div class="video-section">
-                <div class="video-wrapper signup-terminal" style="max-width: 550px; padding: 50px;">
+                <div class="video-wrapper signup-terminal">
                     <div class="scan-line"></div>
                     <h2 style="color: var(--primary-neon); text-align: center; margin-bottom: 30px; letter-spacing: 3px; font-size: 1.5rem;">OPERATOR REGISTRATION</h2>
                     
@@ -30,11 +30,11 @@
 
                     <form method="post">
                         <div class="input-field">
-                            <label for="username">CREATE_OPERATOR_ID</label>
+                            <label for="username">USERNAME</label>
                             <input type="text" id="username" name="username" required autofocus>
                         </div>
                         <div class="input-field">
-                            <label for="password">SET_ACCESS_KEY</label>
+                            <label for="password">PASSWORD</label>
                             <input type="password" id="password" name="password" required>
                         </div>
                         <button type="submit" class="btn-start" style="width: 100%; margin-top: 10px; letter-spacing: 2px;">REGISTER</button>

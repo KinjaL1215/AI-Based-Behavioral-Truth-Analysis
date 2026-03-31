@@ -312,8 +312,7 @@ img, .placeholder-box {
     display: flex;
     justify-content: space-between;
     padding: 10px 0;
-    border-bottom: 1px border-style: dashed;
-    border-color: rgba(76, 175, 80, 0.2);
+    border-bottom: 1px solid rgba(76, 175, 80, 0.2);
 }
 
 .result-label {

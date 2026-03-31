@@ -3,14 +3,14 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Login | Behavioral Truth Analysis</title>
+	<title>Login | Lie Detector</title>
 	<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 	<link rel="stylesheet" href="{{ url_for('static', filename='login.css') }}">
 </head>
 <body>
 	<div class="main-container">
 		<header>
-			<div class="logo">AI<span>Behavioral</span>Analysis</div>
+			<div class="logo">Lie Detector</div>
             <div class="status-badge" style="display: flex;">
                 <span class="dot" style="background-color: #f44336;"></span> AUTH_REQUIRED
             </div>
@@ -30,14 +30,14 @@
 
                     <form method="post">
                         <div class="input-field">
-                            <label for="username">OPERATOR_ID</label>
+                            <label for="username">USERNAME</label>
                             <input type="text" id="username" name="username" required autofocus>
                         </div>
                         <div class="input-field">
-                            <label for="password">ACCESS_KEY</label>
+                            <label for="password">PASSWORD</label>
                             <input type="password" id="password" name="password" required>
                         </div>
-                        <button type="submit" class="btn-start" style="width: 100%; margin-top: 10px; letter-spacing: 2px;">AUTHORIZE</button>
+                        <button type="submit" class="btn-start" style="width: 100%; margin-top: 10px; letter-spacing: 2px;">LOGIN</button>
                     </form>
                     <p class="auth-link">New operator? <a href="/signup" style="color: var(--primary-neon);">Register here</a></p>
                 </div>

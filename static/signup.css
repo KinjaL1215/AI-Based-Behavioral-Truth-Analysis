@@ -1,13 +1,17 @@
 .signup-terminal {
-    max-width: 450px;
+    max-width: 480px;
     margin: 40px auto;
-    padding: 40px;
-    display: block;
+    padding: 35px 40px;
+    display: flex;
+    flex-direction: column;
+    min-height: 450px;
+    height: auto;
+    aspect-ratio: auto;
+    overflow: visible;
     border: 1px solid rgba(33, 150, 243, 0.3); /* Blueish tint for registration */
     background: #000;
     position: relative;
     border-radius: 20px;
-    overflow: hidden;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
 }
 
