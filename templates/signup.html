@@ -28,16 +28,52 @@
                         </div>
                     {% endif %}
 
-                    <form method="post">
+                    <form method="post" autocomplete="on" style="margin-top: 10px;">
+                        <div class="input-field">
+                            <label for="email">EMAIL</label>
+                            <div style="position:relative;">
+                                <input type="email" id="email" name="email" required autofocus placeholder="Enter your email" style="padding-left: 38px;">
+                                <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#00ff88; font-size:1.2em;">
+                                    <svg width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 4.5A2.5 2.5 0 014.5 2h9A2.5 2.5 0 0116 4.5v9A2.5 2.5 0 0113.5 16h-9A2.5 2.5 0 012 13.5v-9z" stroke="#00ff88" stroke-width="1.5"/><path d="M3.5 5.5L9 10l5.5-4.5" stroke="#00ff88" stroke-width="1.5"/></svg>
+                                </span>
+                            </div>
+                        </div>
                         <div class="input-field">
                             <label for="username">USERNAME</label>
-                            <input type="text" id="username" name="username" required autofocus>
+                            <div style="position:relative;">
+                                <input type="text" id="username" name="username" required placeholder="Choose a username" style="padding-left: 38px;">
+                                <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#00ff88; font-size:1.2em;">
+                                    <svg width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="7" r="3.5" stroke="#00ff88" stroke-width="1.5"/><path d="M2 16c1.5-3 4-5 7-5s5.5 2 7 5" stroke="#00ff88" stroke-width="1.5"/></svg>
+                                </span>
+                            </div>
                         </div>
                         <div class="input-field">
                             <label for="password">PASSWORD</label>
-                            <input type="password" id="password" name="password" required>
+                            <div style="position:relative;">
+                                <input type="password" id="password" name="password" required minlength="8" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}" title="Password must be at least 8 characters, include uppercase, lowercase, number, and special character." placeholder="Create a strong password" style="padding-left: 38px;">
+                                <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#00ff88; font-size:1.2em;">
+                                    <svg width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="7" stroke="#00ff88" stroke-width="1.5"/><circle cx="9" cy="9" r="3" stroke="#00ff88" stroke-width="1.5"/></svg>
+                                </span>
+                                <span onclick="togglePassword()" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer; color:#00ff88; font-size:1.2em;">
+                                    <svg id="eyeIcon" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9c2.5-4 6.5-6 8-6s5.5 2 8 6c-2.5 4-6.5 6-8 6s-5.5-2-8-6z" stroke="#00ff88" stroke-width="1.5"/><circle cx="9" cy="9" r="2.5" stroke="#00ff88" stroke-width="1.5"/></svg>
+                                </span>
+                            </div>
                         </div>
-                        <button type="submit" class="btn-start" style="width: 100%; margin-top: 10px; letter-spacing: 2px;">REGISTER</button>
+                        <button type="submit" class="btn-start" style="width: 100%; margin-top: 10px; letter-spacing: 2px; font-size:1.1em;">REGISTER</button>
+                    </form>
+                    <script>
+                        function togglePassword() {
+                            var pwd = document.getElementById('password');
+                            var icon = document.getElementById('eyeIcon');
+                            if (pwd.type === 'password') {
+                                pwd.type = 'text';
+                                icon.innerHTML = '<path d="M1 9c2.5-4 6.5-6 8-6s5.5 2 8 6c-2.5 4-6.5 6-8 6s-5.5-2-8-6z" stroke="#00ff88" stroke-width="1.5"/><circle cx="9" cy="9" r="2.5" stroke="#00ff88" stroke-width="1.5"/><line x1="3" y1="15" x2="15" y2="3" stroke="#00ff88" stroke-width="1.5"/>';
+                            } else {
+                                pwd.type = 'password';
+                                icon.innerHTML = '<path d="M1 9c2.5-4 6.5-6 8-6s5.5 2 8 6c-2.5 4-6.5 6-8 6s-5.5-2-8-6z" stroke="#00ff88" stroke-width="1.5"/><circle cx="9" cy="9" r="2.5" stroke="#00ff88" stroke-width="1.5"/>';
+                            }
+                        }
+                    </script>
                     </form>
                     <p style="margin-top: 20px; color: #b6eada;">Already have an account? <a href="/login" style="color: var(--primary-neon); text-decoration: none; font-weight: bold;">Login here</a></p>
                 </div>
