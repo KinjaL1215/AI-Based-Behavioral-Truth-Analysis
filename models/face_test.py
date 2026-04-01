@@ -11,7 +11,10 @@ shared_data = {"blink_count": 0, "facial_prediction": "Calibrating", "lie_probab
 
 # ✅ Define 'detector' globally so app.py can find it
 # Use IMAGE mode so it can process Base64 frames from the cloud
-base_options = python.BaseOptions(model_asset_path='face_landmarker.task')
+base_options = python.BaseOptions(
+    model_asset_path='face_landmarker.task',
+    delegate=python.BaseOptions.Delegate.CPU   # 🔥 FORCE CPU
+)
 options = vision.FaceLandmarkerOptions(
     base_options=base_options,
     running_mode=vision.RunningMode.IMAGE,
