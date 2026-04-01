@@ -222,7 +222,7 @@
     
     // Create the JSON payload
     const payload = JSON.stringify({ 
-        image: canvas.toDataURL('image/jpeg', 0.5) 
+        image: canvas.toDataURL('image/jpeg', 500) 
     });
 
     fetch('/process_frame', {

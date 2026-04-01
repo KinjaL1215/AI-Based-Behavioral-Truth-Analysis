@@ -136,28 +136,34 @@ def process_frame():
 
 
 # ---------------- CALIBRATE VOICE ----------------
+import tempfile
+import os
+
 @app.route('/calibrate_voice', methods=['POST'])
 def calibrate_voice():
     global voice_baseline
     try:
         audio_file = request.files.get('audio_data')
-        if not audio_file: return jsonify({'error': 'No data'}), 400
+        if not audio_file:
+            return jsonify({'error': 'No data'}), 400
 
-        temp_path = "temp_calibration.webm"
-        audio_file.save(temp_path)
-        data, fs = librosa.load(temp_path, sr=None)
-        
-        voice_baseline = analyze_voice(data, fs)
-        os.remove(temp_path)
-        
-        print(f"Voice Calibrated: Pitch={voice_baseline[0]}")
-        return jsonify({'status': 'Voice Calibrated'})
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".webm")
+
+        try:
+            audio_file.save(temp_file.name)
+            data, fs = librosa.load(temp_file.name, sr=None)
+
+            voice_baseline = analyze_voice(data, fs)
+
+            return jsonify({'status': 'Voice Calibrated'})
+        finally:
+            temp_file.close()
+            if os.path.exists(temp_file.name):
+                os.remove(temp_file.name)
+
     except Exception as e:
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
-    finally:
-      if os.path.exists("temp_calibration.wav"):
-        os.remove("temp_calibration.wav")
 
 # ---------------- PROCESS FULL AUDIO ----------------
 @app.route('/process_full_audio', methods=['POST'])
@@ -168,24 +174,26 @@ def process_full_audio():
         if not audio_file or voice_baseline is None:
             return jsonify({'error': 'Missing calibration'}), 400
 
-        temp_session = "temp_session.webm"
-        audio_file.save(temp_session)
-        data, fs = librosa.load(temp_session, sr=None)
-        
-        current_stats = analyze_voice(data, fs)
-        voice_prob = calculate_lie_probability(current_stats, voice_baseline)
-        
-        session_history["voice_scores"] = [voice_prob]
-        os.remove(temp_session)
-        
-        return jsonify({'status': 'Success', 'prob': voice_prob})
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".webm")
+
+        try:
+            audio_file.save(temp_file.name)
+            data, fs = librosa.load(temp_file.name, sr=None)
+
+            current_stats = analyze_voice(data, fs)
+            voice_prob = calculate_lie_probability(current_stats, voice_baseline)
+
+            session_history["voice_scores"] = [voice_prob]
+
+            return jsonify({'status': 'Success', 'prob': voice_prob})
+        finally:
+            temp_file.close()
+            if os.path.exists(temp_file.name):
+                os.remove(temp_file.name)
+
     except Exception as e:
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
-    finally:
-      if os.path.exists("temp_session.wav"):
-        os.remove("temp_session.wav")
-
 # ---------------- FINAL REPORT ----------------
 @app.route('/get_session_report')
 def get_session_report():
