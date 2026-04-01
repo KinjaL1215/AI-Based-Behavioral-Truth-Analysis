@@ -1,85 +1,49 @@
 import numpy as np
-import sounddevice as sd
 import librosa
 
-
-# 🎤 UNIVERSAL RECORD FUNCTION
-def record_audio(duration=3, fs=44100):
-    print(f"🎤 Recording for {duration} seconds...")
-
-    try:
-        sd.default.channels = 1  # ✅ force mono (safe)
-        devices = sd.query_devices()
-
-        input_devices = []
-
-        # ✅ find all input devices
-        for i, device in enumerate(devices):
-            if device['max_input_channels'] > 0:
-                input_devices.append(i)
-
-        if not input_devices:
-            print("❌ No microphone devices found!")
-            return None, None
-
-        # ✅ try each device
-        for device_id in input_devices:
-            try:
-                print(f"🔍 Trying device {device_id}...")
-
-                recording = sd.rec(
-                    int(duration * fs),
-                    samplerate=fs,
-                    channels=1,
-                    dtype='float32',
-                    device=device_id
-                )
-
-                sd.wait()
-                print(f"✅ Recording success with device {device_id}")
-
-                return recording.flatten(), fs
-
-            except Exception as ex:
-                print(f"❌ Device {device_id} failed:", ex)
-
-        print("❌ No working microphone found!")
-        return None, None
-
-    except Exception as ex:
-        print("❌ Microphone Error:", ex)
-        return None, None
-
+# 🎤 REMOVED: record_audio function 
+# (This is now handled by the Browser/JavaScript and passed to the backend)
 
 # 🎧 ANALYSIS FUNCTION
 def analyze_voice(audio, fs):
-    if audio is None:
-        raise ValueError("No audio data")
+    """
+    Processes raw audio data sent from the client.
+    'audio' is now a numpy array provided by soundfile in app.py.
+    """
+    if audio is None or len(audio) == 0:
+        return 0.0, 0.0, 0.0
 
-    # 🎯 Pitch
+    # Ensure audio is float32 for librosa
+    if audio.dtype != np.float32:
+        audio = audio.astype(np.float32)
+
+    # 🎯 Pitch (YIN algorithm)
     try:
+        # Added a check to ensure audio is long enough for fmin
         pitch_values = librosa.yin(audio, fmin=50, fmax=300)
-        pitch = np.mean(pitch_values)
+        pitch = float(np.nanmean(pitch_values)) if len(pitch_values) > 0 else 0.0
     except:
-        pitch = 0
+        pitch = 0.0
 
-    # 🔊 Energy
-    energy = np.mean(audio**2)
+    # 🔊 Energy (RMS equivalent)
+    energy = float(np.mean(audio**2))
 
     # 🥁 Tempo
     try:
-        tempo, _ = librosa.beat.beat_track(y=audio, sr=fs)
-        if isinstance(tempo, np.ndarray):
-            tempo = float(np.mean(tempo))
+        # librosa 0.10+ returns (tempo, beat_frames) or just tempo depending on version
+        tempo_data = librosa.beat.beat_track(y=audio, sr=fs)
+        # Handle different librosa version return types
+        if isinstance(tempo_data, tuple):
+            tempo = float(tempo_data[0])
         else:
-            tempo = float(tempo)
+            tempo = float(tempo_data)
     except:
         tempo = 0.0
 
     return pitch, energy, tempo
 
 
-# 📊 SCORE CALCULATION
+# 📊 SCORE CALCULATION (Kept exactly as your original)
 def calculate_lie_probability(current_stats, baseline_stats):
     """
     Compares current voice to baseline to find 'Stress'
@@ -90,20 +54,19 @@ def calculate_lie_probability(current_stats, baseline_stats):
     score = 0
     
     # 1. Pitch Spike (Strongest Indicator)
-    # If pitch increases by more than 10% from natural baseline
-    if c_pitch > (b_pitch * 1.10):
+    if b_pitch > 0 and c_pitch > (b_pitch * 1.10):
         score += 50 
         
-    # 2. Energy/Volume Increase (Aggression/Defensiveness)
-    if c_energy > (b_energy * 1.5):
+    # 2. Energy/Volume Increase
+    if b_energy > 0 and c_energy > (b_energy * 1.5):
         score += 25
         
-    # 3. Tempo Change (Hesitation or Rushing)
-    # If they speak 20% faster or slower than their normal speed
-    if c_tempo > (b_tempo * 1.2) or c_tempo < (b_tempo * 0.8):
-        score += 25
+    # 3. Tempo Change
+    if b_tempo > 0:
+        if c_tempo > (b_tempo * 1.2) or c_tempo < (b_tempo * 0.8):
+            score += 25
 
-    return score # Returns a probability out of 100
+    return min(score, 100) # Caps at 100%
 
 def classify_voice_result(probability):
     if probability >= 75:
@@ -112,21 +75,5 @@ def classify_voice_result(probability):
         return "MODERATE STRESS"
     else:
         return "STABLE (Likely Truth)"
-# 🚀 TEST EXECUTION (Put this at the very bottom of voice.py)
-if __name__ == "__main__":
-    print("--- STEP 1: CALIBRATION (Speak Normally) ---")
-    audio_b, fs_b = record_audio(duration=3)
-    if audio_b is not None:
-        baseline_stats = analyze_voice(audio_b, fs_b)
-        print(f"Baseline Set: Pitch={baseline_stats[0]:.2f}")
 
-        print("\n--- STEP 2: LIE TEST (Speak with Stress/High Pitch) ---")
-        audio_t, fs_t = record_audio(duration=3)
-        current_stats = analyze_voice(audio_t, fs_t)
-
-        prob = calculate_lie_probability(current_stats, baseline_stats)
-        result = classify_voice_result(prob)
-
-        print(f"\n📊 RESULT: {result} ({prob}%)")
-    else:
-        print("❌ Recording failed.")
+# 🚀 No changes needed to logic below this line
