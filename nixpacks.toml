@@ -1,10 +1,11 @@
 [phases.setup]
 nixPkgs = [
-  "mesa",         # Provides libGL.so.1 for OpenCV
+  "...",           # IMPORTANT: Keeps default Python/system tools
+  "mesa",          # Provides libGL.so.1
   "glib",
-  "libstdc++",
+  "libstdcxx",     # Note: use 'libstdcxx' instead of 'libstdc++' for Nix
   "zlib",
-  "ffmpeg"        # Required for librosa audio
+  "ffmpeg"         
 ]
 
 [phases.install]
