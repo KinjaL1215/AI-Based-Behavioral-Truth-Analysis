@@ -1,16 +1,17 @@
 [phases.setup]
+# System dependencies for OpenCV, MediaPipe, and Librosa
 nixPkgs = [
-  "python310",
-  "glib",
-  "libGL",
-  "libglib",
-  "libgcc",
-  "libstdc++",
-  "zlib"
+  "libGL",       # solves libGL.so.1
+  "glib",        # required by MediaPipe
+  "libstdc++",   # C++ standard library for OpenCV binaries
+  "zlib",        # optional, safe to include
+  "ffmpeg"       # required for audio processing in Librosa/Pydub
 ]
 
 [phases.install]
-cmds = ["pip install -r requirements.txt"]
+# Install Python dependencies
+cmds = ["pip install --no-cache-dir -r requirements.txt"]
 
 [phases.start]
-cmd = "gunicorn app:app"
+# Start Flask app on Railway using Gunicorn
+cmd = "gunicorn app:app --bind 0.0.0.0:$PORT"
