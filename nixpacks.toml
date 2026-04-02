@@ -1,17 +1,17 @@
 [phases.setup]
-# System dependencies for OpenCV + MediaPipe + Librosa
 nixPkgs = [
-  "mesa-libGL",   # correct libGL package
+  "mesa",         # Provides libGL.so.1 for OpenCV
   "glib",
   "libstdc++",
   "zlib",
-  "ffmpeg"        # needed for audio processing (librosa)
+  "ffmpeg"        # Required for librosa audio
 ]
 
 [phases.install]
-# Install Python dependencies
-cmds = ["pip install --no-cache-dir -r requirements.txt"]
+cmds = [
+  "python3 -m pip install --upgrade pip",
+  "pip install --no-cache-dir -r requirements.txt"
+]
 
 [phases.start]
-# Start Flask app on Railway using Gunicorn
 cmd = "gunicorn app:app --bind 0.0.0.0:$PORT"
