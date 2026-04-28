@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Behavioral Analysis - Pro</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div class="main-container">
@@ -82,100 +82,120 @@
         </footer>
     </div>
 
-   <script>
-    const video = document.getElementById('webcam');
-    const canvas = document.getElementById('output_canvas');
-    const ctx = canvas.getContext('2d');
-    let isAnalysisActive = false;
-    let frameInterval = null;
-    let blinkInterval = null;
-    let mediaRecorder;
-    let audioChunks = [];
-    let userStream = null;
-    let isCalibrating = false;
+  <script>
+const BASE_URL = "http://127.0.0.1:5000"; // change after deployment
 
-    // --- STEP 1: CALIBRATION ---
-    async function startCalibration() {
-        if (isCalibrating) return;
-        isCalibrating = true;
+const video = document.getElementById('webcam');
+const canvas = document.getElementById('output_canvas');
+const ctx = canvas.getContext('2d');
 
-        const statusText = document.getElementById('statusText');
-        const calibrateBtn = document.getElementById('calibrateBtn');
-        statusText.innerText = "CALIBRATING VOICE (10s)...";
-        calibrateBtn.disabled = true;
+let isAnalysisActive = false;
+let frameInterval = null;
+let blinkInterval = null;
+let mediaRecorder;
+let audioChunks = [];
+let userStream = null;
+let isCalibrating = false;
 
-        try {
-            userStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-            mediaRecorder = new MediaRecorder(userStream);
-            audioChunks = [];
+// ---------------- CALIBRATION ----------------
+async function startCalibration() {
+    if (isCalibrating) return;
+    isCalibrating = true;
 
-            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
-            mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                const formData = new FormData();
-                formData.append('audio_data', audioBlob);
-                statusText.innerText = "PROCESSING BASELINE...";
-                
-                try {
-                    const res = await fetch('/calibrate_voice', { method: 'POST', body: formData });
-                    const data = await res.json();
-                    if (data.status === 'Voice Calibrated') {
-                        statusText.innerText = "READY";
-                        calibrateBtn.style.display = "none";
-                        document.getElementById('startBtn').style.display = "inline-block";
-                    }
-                } catch (err) { statusText.innerText = "RETRY CALIBRATION"; calibrateBtn.disabled = false; }
-                finally { isCalibrating = false; }
-            };
+    const statusText = document.getElementById('statusText');
+    const calibrateBtn = document.getElementById('calibrateBtn');
 
-            mediaRecorder.start();
-            setTimeout(() => { if (mediaRecorder.state === "recording") mediaRecorder.stop(); }, 10000); 
-        } catch (err) { alert("Mic Access Required!"); isCalibrating = false; }
-    }
+    statusText.innerText = "CALIBRATING VOICE (10s)...";
+    calibrateBtn.disabled = true;
 
-    // --- STEP 2: SESSION LOGIC ---
-    async function startOneMinuteSession() {
     try {
-        // 1. CLEAR previous data and ACTIVATE the backend session first
-        const startRes = await fetch('/start_session');
-        const startData = await startRes.json();
-        console.log("Backend Session Active:", startData.status);
+        userStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
 
-        // 2. Setup UI
+        mediaRecorder = new MediaRecorder(userStream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = e => {
+            if (e.data.size > 0) audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            const formData = new FormData();
+            formData.append('audio_data', audioBlob);
+
+            statusText.innerText = "PROCESSING BASELINE...";
+
+            try {
+                const res = await fetch(`${BASE_URL}/calibrate_voice`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await res.json();
+
+                if (data.status === 'Voice Calibrated') {
+                    statusText.innerText = "READY";
+                    calibrateBtn.style.display = "none";
+                    document.getElementById('startBtn').style.display = "inline-block";
+                }
+            } catch (err) {
+                statusText.innerText = "RETRY CALIBRATION";
+                calibrateBtn.disabled = false;
+            }
+
+            isCalibrating = false;
+        };
+
+        mediaRecorder.start();
+
+        setTimeout(() => {
+            if (mediaRecorder.state === "recording") mediaRecorder.stop();
+        }, 10000);
+
+    } catch (err) {
+        alert("Mic/Camera access required!");
+        isCalibrating = false;
+    }
+}
+
+// ---------------- START SESSION ----------------
+async function startOneMinuteSession() {
+    try {
+        await fetch(`${BASE_URL}/start_session`);
+
         video.srcObject = userStream;
+        await video.play(); // ✅ CRITICAL FIX
+
         video.style.display = "block";
         document.getElementById('placeholder').style.display = "none";
         document.getElementById('scanLine').style.display = "block";
         document.getElementById('statusBadge').style.display = "flex";
         document.getElementById('startBtn').style.display = "none";
         document.getElementById('stopBtn').style.display = "inline-block";
-        
-        // 3. Reset local state
+
         isAnalysisActive = true;
         audioChunks = [];
 
-        // 4. Initialize MediaRecorder with correct codec for browsers
-        // Using webm because browsers record in this natively
-        mediaRecorder = new MediaRecorder(userStream, { mimeType: 'video/webm;codecs=vp8,opus' });
-        
+        mediaRecorder = new MediaRecorder(userStream, {
+            mimeType: 'video/webm;codecs=vp8,opus'
+        });
+
         mediaRecorder.ondataavailable = e => {
             if (e.data.size > 0) audioChunks.push(e.data);
         };
 
         mediaRecorder.onstop = async () => {
-            // Use webm type so librosa/ffmpeg can read the header correctly
             const audioBlob = new Blob(audioChunks, { type: 'video/webm' });
             const formData = new FormData();
             formData.append('audio_data', audioBlob);
-            
+
             document.getElementById('statusText').innerText = "FINALIZING ANALYSIS...";
-            
-            // Send to server and WAIT for the 200 OK
-            const response = await fetch('/process_full_audio', { 
-                method: 'POST', 
-                body: formData 
+
+            const response = await fetch(`${BASE_URL}/process_full_audio`, {
+                method: 'POST',
+                body: formData
             });
-            
+
             if (response.ok) {
                 showFinalReport();
             } else {
@@ -183,91 +203,113 @@
             }
         };
 
-        // 5. Start Recording and Visual Analysis
         mediaRecorder.start();
-        frameInterval = setInterval(sendFrameToServer, 200); 
-        blinkInterval = setInterval(updateBlinkCount, 1000); 
 
-        // 6. 60-Second Timer
+        // ✅ delay so video loads
+        setTimeout(() => {
+            frameInterval = setInterval(sendFrameToServer, 200);
+        }, 500);
+
+        blinkInterval = setInterval(updateBlinkCount, 1000);
+
+        // TIMER
         let timeLeft = 60;
-        const timerInt = setInterval(() => {
+        const timer = setInterval(() => {
             timeLeft--;
             document.getElementById('statusText').innerText = `SESSION: ${timeLeft}s`;
-            
-            if(timeLeft <= 0 || !isAnalysisActive) {
-                clearInterval(timerInt);
-                if(isAnalysisActive) {
-                    // This triggers mediaRecorder.onstop above
-                    mediaRecorder.stop(); 
-                    stopCamera(false); 
+
+            if (timeLeft <= 0 || !isAnalysisActive) {
+                clearInterval(timer);
+
+                if (isAnalysisActive) {
+                    mediaRecorder.stop();
+                    stopCamera(false);
                 }
             }
         }, 1000);
 
     } catch (err) {
         console.error("Session Start Error:", err);
-        alert("Could not start session. Please check Mic/Camera permissions.");
+        alert("Could not start session.");
     }
 }
 
-
-
-   function sendFrameToServer() {
+// ---------------- SEND FRAME ----------------
+function sendFrameToServer() {
     if (!isAnalysisActive) return;
-    
-    // Draw current webcam frame to hidden canvas
+
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+        console.log("Video not ready");
+        return;
+    }
+
+    console.log("Sending frame...");
+
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
+
     ctx.drawImage(video, 0, 0);
-    
-    // Create the JSON payload
-    const payload = JSON.stringify({ 
-        image: canvas.toDataURL('image/jpeg', 500) 
+
+    const payload = JSON.stringify({
+        image: canvas.toDataURL('image/jpeg', 0.5)
     });
 
-    fetch('/process_frame', {
+    fetch(`${BASE_URL}/process_frame`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: payload
-    }).then(response => {
-        if (!response.ok) {
-            console.warn("Server rejected frame. Status:", response.status);
-        }
-    }).catch(err => console.error("Network error during frame send:", err));
+    }).catch(err => console.error(err));
 }
 
+// ---------------- BLINK COUNT ----------------
+function updateBlinkCount() {
+    if (!isAnalysisActive) return;
 
-    function updateBlinkCount() {
-        if (!isAnalysisActive) return;
-        fetch('/blink_count').then(res => res.json()).then(data => { 
-            document.getElementById('count').textContent = data.count; 
+    fetch(`${BASE_URL}/blink_count`)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('count').textContent = data.count;
         });
-    }
+}
 
-    function showFinalReport() {
-        fetch('/get_session_report').then(res => res.json()).then(data => {
+// ---------------- FINAL REPORT ----------------
+function showFinalReport() {
+    fetch(`${BASE_URL}/get_session_report`)
+        .then(res => res.json())
+        .then(data => {
             document.getElementById('finalResults').style.display = "block";
-            document.getElementById('scanLine').style.display = "none";
-            const vEl = document.getElementById('finalVoiceResult');
-            vEl.innerText = `${data.verdict} (${data.lie_probability})`;
-            vEl.style.color = data.verdict.includes("TRUTHFUL") ? "#4CAF50" : "#f44336";
-            document.getElementById('voiceScore').innerText = `Voice Stress: ${data.voice_stress} | Face Tension: ${data.face_tension}`;
+
+            const v = document.getElementById('finalVoiceResult');
+            v.innerText = `${data.verdict} (${data.lie_probability})`;
+            v.style.color = data.verdict.includes("TRUTHFUL") ? "#4CAF50" : "#f44336";
+
+            document.getElementById('voiceScore').innerText =
+                `Voice Stress: ${data.voice_stress} | Face Tension: ${data.face_tension}`;
+
             document.getElementById('finalBlinkCount').innerText = data.blink_rate;
         });
+}
+
+// ---------------- STOP ----------------
+function stopCamera(immediateReport) {
+    isAnalysisActive = false;
+
+    clearInterval(frameInterval);
+    clearInterval(blinkInterval);
+
+    if (userStream) {
+        userStream.getTracks().forEach(t => t.stop());
     }
 
-    function stopCamera(immediateReport) {
-        isAnalysisActive = false;
-        clearInterval(frameInterval);
-        clearInterval(blinkInterval);
-        if (userStream) userStream.getTracks().forEach(t => t.stop());
-        video.style.display = "none";
-        document.getElementById('placeholder').style.display = "block";
-        document.getElementById('statusBadge').style.display = "none";
-        document.getElementById('stopBtn').style.display = "none";
-        document.getElementById('resetBtn').style.display = "inline-block";
-        if (immediateReport) showFinalReport();
-    }
+    video.style.display = "none";
+
+    document.getElementById('placeholder').style.display = "block";
+    document.getElementById('statusBadge').style.display = "none";
+    document.getElementById('stopBtn').style.display = "none";
+    document.getElementById('resetBtn').style.display = "inline-block";
+
+    if (immediateReport) showFinalReport();
+}
 </script>
 </body>
 </html>

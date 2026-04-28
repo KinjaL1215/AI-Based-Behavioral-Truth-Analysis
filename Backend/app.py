@@ -1,14 +1,13 @@
 import numpy as np
-import time
 import base64
 import cv2
-import io
 import librosa
 import traceback
 import os
 import tempfile
 from functools import wraps
 from flask import Flask, render_template, jsonify, request, redirect, session, g
+from flask_cors import CORS   # ✅ ADDED
 
 # ✅ Models and Logic Imports
 from models.face_test import analyze_frame, shared_data
@@ -17,10 +16,30 @@ from models.result import calculate_final_verdict
 from models.auth import auth
 from models.db import users_collection
 
-cv2.ocl.setUseOpenCL(False)  # Prevent OpenCL from trying to access GPU
-cv2.setNumThreads(0)
-app = Flask(__name__)
-app.secret_key = 'your_secret_key_here'
+# ✅ Prevent OpenCV issues
+try:
+    cv2.ocl.setUseOpenCL(False)
+except AttributeError:
+    pass
+
+try:
+    cv2.setNumThreads(0)
+except AttributeError:
+    pass
+
+app = Flask(
+    __name__,
+    template_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Frontend', 'templates')),
+    static_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'Frontend', 'static')),
+    static_url_path='/static'
+)
+
+# ✅ SECRET KEY from environment
+app.secret_key = os.environ.get("SECRET_KEY", "fallback_secret")
+
+# ✅ ENABLE CORS (VERY IMPORTANT for frontend)
+CORS(app)
+
 app.register_blueprint(auth)
 
 # --- GLOBAL STORAGE ---
@@ -64,16 +83,19 @@ def start_session():
     shared_data["blink_count"] = 0 
     shared_data["facial_prediction"] = "Normal"
 
-    session_history["is_active"] = True
-    session_history["tension_count"] = 0
-    session_history["total_frames"] = 0
-    session_history["voice_scores"] = []
-    session_history["start_blink"] = 0 
+    session_history = {
+        "is_active": True,
+        "tension_count": 0,
+        "total_frames": 0,
+        "voice_scores": [],
+        "start_blink": 0
+    }
     
     return jsonify({"status": "Session Tracking Active and Reset"})
 
 # ---------------- PROCESS FRAME ----------------
 @app.route('/process_frame', methods=['POST'])
+
 def process_frame():
     global session_history, shared_data
     try:
@@ -94,8 +116,8 @@ def process_frame():
         if frame is None:
             return jsonify({"error": "Decode failed"}), 400
 
-        # ✅ Use centralized AI logic (MediaPipe handled inside)
         result = analyze_frame(frame, session_history)
+        print("Frame received")
 
         return jsonify({
             "status": "ok",
@@ -197,6 +219,5 @@ def blink_count():
     return jsonify(count=shared_data["blink_count"])
 
 # ---------------- RUN SERVER ----------------
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=True, use_reloader=False, threaded=True)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
